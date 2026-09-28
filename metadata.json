@@ -1,0 +1,6 @@
+{
+  "name": "ZX Sensitivity Optimizer",
+  "description": "Real Android X/Y touch sensitivity, crosshair overlay, and game hardware optimizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

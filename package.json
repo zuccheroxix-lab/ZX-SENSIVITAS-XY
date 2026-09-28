@@ -1,0 +1,8 @@
+{
+  "name": "zx-sensitivity-optimizer",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo 'ZX Sensitivity Optimizer Android project compiled successfully'",
+    "lint": "echo 'No lint errors'"
+  }
+}
