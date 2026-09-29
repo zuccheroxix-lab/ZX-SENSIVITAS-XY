@@ -181,32 +181,41 @@ fun GameProfileScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Button(
                                 onClick = { viewModel.applyGameProfileToSystem(profile) },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.2f)
                             ) {
                                 Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Apply Profile")
+                                Text("Apply Profile", style = MaterialTheme.typography.labelSmall)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.selectGameProfile(profile)
+                                    viewModel.useGlobalForSelectedGame()
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Use Global", style = MaterialTheme.typography.labelSmall)
                             }
 
                             if (isInstalled) {
-                                OutlinedButton(
+                                Button(
                                     onClick = { viewModel.launchGame(profile.packageName, context) },
-                                    modifier = Modifier.weight(1f)
+                                    colors = ButtonDefaults.buttonColors(containerColor = ZxNeonCyan),
+                                    modifier = Modifier.weight(0.9f)
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Launch")
+                                    Text("Launch", style = MaterialTheme.typography.labelSmall, color = ZxDarkBackground)
                                 }
                             }
 
                             if (profile.isCustom) {
                                 IconButton(
                                     onClick = { viewModel.deleteGameProfile(profile) },
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                                 }

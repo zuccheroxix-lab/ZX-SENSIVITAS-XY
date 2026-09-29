@@ -21,6 +21,8 @@ data class GameProfileEntity(
     val pointerSpeed: Int = 2,
     val targetDpi: Int = 420,
     val gameMode: String = "PERFORMANCE",
+    val vibrationIntensity: Int = 180,
+    val vibrationProfile: String = "CLICK",
     val isCustom: Boolean = false,
     val isDefaultSelected: Boolean = false
 ) {

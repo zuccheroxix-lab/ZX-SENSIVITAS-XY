@@ -216,12 +216,12 @@ fun DeviceMonitorScreen(
                 TelemetryMetricItem("Resolution", "${displayData.physicalWidthPx} x ${displayData.physicalHeightPx}")
                 TelemetryMetricItem("Refresh Rate", "${displayData.refreshRateHz.toInt()} Hz")
                 TelemetryMetricItem("Density DPI", "${displayData.densityDpi}")
-                TelemetryMetricItem("Scale", "${"%.2f".format(displayData.densityScale)}x")
+                TelemetryMetricItem("In-Game FPS", "UNAVAILABLE")
             }
 
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Hardware Supported Refresh Rates: ${displayData.supportedRefreshRates.map { "${it.toInt()}Hz" }.joinToString(", ")}",
+                text = "FPS Note: Android restricts 3rd-party frame rate metering without systrace/root. No randomized fake FPS numbers are generated. Display is locked to hardware ${displayData.refreshRateHz.toInt()} Hz.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

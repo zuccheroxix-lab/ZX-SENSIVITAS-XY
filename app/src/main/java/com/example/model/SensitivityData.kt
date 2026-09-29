@@ -15,6 +15,128 @@ enum class DragTestMode(val displayName: String, val instruction: String) {
     FREE_DRAG("FREE DRAG", "Freehand swipes to test overall engine responsiveness")
 }
 
+enum class ExecutionMode(val displayName: String, val badgeText: String, val description: String) {
+    SIMULATION(
+        displayName = "SIMULATION",
+        badgeText = "NO SYSTEM CHANGES",
+        description = "Simulation Mode: Validates requirements, calculates targets, and simulates expected outcomes without altering Android system or display settings."
+    ),
+    APPLY(
+        displayName = "APPLY",
+        badgeText = "REAL ACTION",
+        description = "Apply Mode: Executes real actions (pointer speed, density, crosshair overlay, game profiles) with strict security verification."
+    )
+}
+
+enum class SensitivityMode(val displayName: String, val description: String) {
+    GLOBAL(
+        displayName = "GLOBAL",
+        description = "One default master profile applied across all games and drag testing."
+    ),
+    PER_GAME(
+        displayName = "PER-GAME",
+        description = "Dedicated independent sensitivity, crosshair, and vibration profile per game."
+    )
+}
+
+enum class ActionStatus(val title: String) {
+    SUCCESS("SUCCESS"),
+    PARTIAL("PARTIAL"),
+    FAILED("FAILED"),
+    NOT_SUPPORTED("NOT SUPPORTED"),
+    BLOCKED("BLOCKED")
+}
+
+enum class VerificationStatus(val title: String) {
+    VERIFIED("VERIFIED"),
+    PARTIALLY_VERIFIED("PARTIALLY VERIFIED"),
+    FAILED_TO_VERIFY("FAILED TO VERIFY"),
+    VERIFICATION_UNAVAILABLE("VERIFICATION UNAVAILABLE")
+}
+
+data class ActionResultData(
+    val actionName: String,
+    val targetName: String,
+    val mode: ExecutionMode,
+    val status: ActionStatus,
+    val detail: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val verification: VerificationStatus = VerificationStatus.VERIFICATION_UNAVAILABLE
+)
+
+enum class SmartStutterStatus(val displayName: String, val desc: String) {
+    STABLE("STABLE", "Hardware headroom and memory pressure optimal for smooth gaming"),
+    WARNING("WARNING", "Moderate memory load or thermal elevation detected"),
+    HIGH_LOAD("HIGH LOAD", "High resource consumption may cause occasional frame drops"),
+    THERMAL_WARNING("THERMAL WARNING", "Device thermal throttling active; cooling recommended"),
+    MEMORY_PRESSURE("MEMORY PRESSURE", "Available RAM critically low (< 15%)"),
+    LIMITED_DATA("LIMITED DATA", "System telemetry restricted by OEM environment")
+}
+
+data class SmartStutterAnalysis(
+    val status: SmartStutterStatus = SmartStutterStatus.STABLE,
+    val memoryFreePercent: Float = 0f,
+    val thermalLevel: Int = 0,
+    val batteryTempCelsius: Float = 0f,
+    val currentRefreshRateHz: Float = 60f,
+    val recommendations: List<String> = emptyList()
+)
+
+enum class HapticProfileType(val displayName: String) {
+    TICK("Gentle Tick"),
+    CLICK("Standard Click"),
+    HEAVY_CLICK("Heavy Feedback"),
+    DOUBLE_CLICK("Double Click"),
+    PULSE("Tactical Pulse")
+}
+
+data class VibrationConfig(
+    val isEnabled: Boolean = true,
+    val intensity: Int = 180, // Range 1 to 255
+    val durationMs: Int = 50,  // Range 10 to 300ms
+    val profile: HapticProfileType = HapticProfileType.CLICK
+)
+
+enum class FeatureState(val label: String) {
+    AVAILABLE("AVAILABLE"),
+    REQUIRES_PERMISSION("REQUIRES PERMISSION"),
+    REQUIRES_SHIZUKU("REQUIRES SHIZUKU"),
+    NOT_SUPPORTED("NOT SUPPORTED"),
+    READY("READY"),
+    ACTIVE("ACTIVE"),
+    ERROR("ERROR")
+}
+
+data class CapabilityItem(
+    val name: String,
+    val isSupported: Boolean,
+    val requiredPermission: String?,
+    val requiresShizuku: Boolean,
+    val applyAvailable: Boolean,
+    val verifyAvailable: Boolean,
+    val state: FeatureState,
+    val description: String
+)
+
+enum class PreflightStatus {
+    READY,
+    PARTIAL,
+    ACTION_REQUIRED,
+    UNSUPPORTED
+}
+
+data class PreflightCheckItem(
+    val title: String,
+    val isPassed: Boolean,
+    val detail: String
+)
+
+data class PreflightCheckResult(
+    val status: PreflightStatus = PreflightStatus.READY,
+    val items: List<PreflightCheckItem> = emptyList(),
+    val timestamp: Long = 0L
+)
+
 enum class SensitivityPreset(
     val title: String,
     val xSensitivity: Float,

@@ -1,6 +1,6 @@
 {
-  "name": "ZX Sensitivity Optimizer",
-  "description": "Real Android X/Y touch sensitivity, crosshair overlay, and game hardware optimizer.",
+  "name": "GAMESLABS SENSITIVITY X/Y + OPTIMIZER",
+  "description": "Real Android X/Y touch sensitivity, calibration engine, smart stutter monitor, crosshair overlay, and gaming assistant optimizer.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

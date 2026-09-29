@@ -3,20 +3,15 @@ package com.example.database
 import android.content.Context
 import android.content.pm.PackageManager
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 class AppRepository(
     private val gameProfileDao: GameProfileDao,
     private val crosshairPresetDao: CrosshairPresetDao,
+    private val actionHistoryDao: ActionHistoryDao,
+    private val globalConfigDao: GlobalConfigDao,
     private val context: Context
 ) {
     val allGameProfiles: Flow<List<GameProfileEntity>> = gameProfileDao.getAllProfiles()
-        .map { list ->
-            // Update installed status dynamically
-            list.map { entity ->
-                entity
-            }
-        }
 
     fun isPackageInstalled(packageName: String): Boolean {
         return try {
@@ -27,7 +22,7 @@ class AppRepository(
                 context.packageManager.getPackageInfo(packageName, 0)
             }
             true
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             false
         }
     }
@@ -45,9 +40,24 @@ class AppRepository(
         gameProfileDao.setActiveProfile(id)
     }
 
+    // Crosshair Presets
     val allCrosshairPresets: Flow<List<CrosshairPresetEntity>> = crosshairPresetDao.getAllPresets()
 
     suspend fun insertPreset(preset: CrosshairPresetEntity): Long = crosshairPresetDao.insertPreset(preset)
 
     suspend fun deletePreset(preset: CrosshairPresetEntity) = crosshairPresetDao.deletePreset(preset)
+
+    // Action History
+    val allActionHistory: Flow<List<ActionHistoryEntity>> = actionHistoryDao.getAllHistory()
+
+    suspend fun insertAction(action: ActionHistoryEntity): Long = actionHistoryDao.insertAction(action)
+
+    suspend fun clearActionHistory() = actionHistoryDao.clearHistory()
+
+    // Global Config
+    val globalConfigFlow: Flow<GlobalConfigEntity?> = globalConfigDao.getGlobalConfigFlow()
+
+    suspend fun getGlobalConfig(): GlobalConfigEntity? = globalConfigDao.getGlobalConfig()
+
+    suspend fun saveGlobalConfig(config: GlobalConfigEntity) = globalConfigDao.insertOrUpdate(config)
 }

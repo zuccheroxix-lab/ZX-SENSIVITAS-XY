@@ -18,12 +18,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.model.PerformanceMode
-import com.example.model.ShizukuStatus
+import com.example.model.*
 import com.example.ui.components.StatusBadge
 import com.example.ui.components.TacticalCard
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun OptimizerScreen(
@@ -32,9 +33,12 @@ fun OptimizerScreen(
 ) {
     val optimizerState by viewModel.optimizerState.collectAsState()
     val memoryData by viewModel.memoryData.collectAsState()
+    val batteryData by viewModel.batteryData.collectAsState()
+    val thermalData by viewModel.thermalData.collectAsState()
     val displayData by viewModel.displayData.collectAsState()
     val shizukuInfo by viewModel.shizukuInfo.collectAsState()
-    val selectedProfile by viewModel.selectedProfile.collectAsState()
+    val executionMode by viewModel.executionMode.collectAsState()
+    val smartStutter by viewModel.smartStutterAnalysis.collectAsState()
 
     Column(
         modifier = modifier
@@ -58,7 +62,7 @@ fun OptimizerScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Native Android hardware tuning & memory management",
+                    text = "Smart Stutter Detection & Native Resource Management",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -66,11 +70,250 @@ fun OptimizerScreen(
             StatusBadge(
                 text = optimizerState.currentMode.name,
                 color = when (optimizerState.currentMode) {
-                    PerformanceMode.PERFORMANCE -> MaterialTheme.colorScheme.primary
-                    PerformanceMode.BALANCED -> MaterialTheme.colorScheme.secondary
-                    PerformanceMode.BATTERY_SAVER -> MaterialTheme.colorScheme.tertiary
+                    PerformanceMode.PERFORMANCE -> ZxNeonCyan
+                    PerformanceMode.BALANCED -> ZxNeonGreen
+                    PerformanceMode.BATTERY_SAVER -> ZxWarning
                 }
             )
+        }
+
+        // --- SMART STUTTER DETECTION PANEL ---
+        TacticalCard(
+            borderColor = when (smartStutter.status) {
+                SmartStutterStatus.STABLE -> ZxNeonGreen
+                SmartStutterStatus.WARNING, SmartStutterStatus.HIGH_LOAD -> ZxWarning
+                else -> ZxNeonRed
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(
+                            imageVector = when (smartStutter.status) {
+                                SmartStutterStatus.STABLE -> Icons.Default.CheckCircle
+                                SmartStutterStatus.WARNING -> Icons.Default.Warning
+                                else -> Icons.Default.ErrorOutline
+                            },
+                            contentDescription = null,
+                            tint = when (smartStutter.status) {
+                                SmartStutterStatus.STABLE -> ZxNeonGreen
+                                SmartStutterStatus.WARNING -> ZxWarning
+                                else -> ZxNeonRed
+                            }
+                        )
+                        Text(
+                            text = "SMART STUTTER DIAGNOSTICS",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ZxTextPrimary
+                        )
+                    }
+
+                    Surface(
+                        color = when (smartStutter.status) {
+                            SmartStutterStatus.STABLE -> ZxNeonGreen.copy(alpha = 0.2f)
+                            SmartStutterStatus.WARNING -> ZxWarning.copy(alpha = 0.2f)
+                            else -> ZxNeonRed.copy(alpha = 0.2f)
+                        },
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = smartStutter.status.displayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = when (smartStutter.status) {
+                                SmartStutterStatus.STABLE -> ZxNeonGreen
+                                SmartStutterStatus.WARNING -> ZxWarning
+                                else -> ZxNeonRed
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = smartStutter.status.desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ZxTextSecondary
+                )
+
+                // 4 Real Metrics
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("RAM Free", style = MaterialTheme.typography.labelSmall, color = ZxTextSecondary)
+                        Text(
+                            text = "${smartStutter.memoryFreePercent.toInt()}%",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (smartStutter.memoryFreePercent > 20f) ZxNeonGreen else ZxWarning
+                        )
+                    }
+
+                    Column {
+                        Text("Battery Temp", style = MaterialTheme.typography.labelSmall, color = ZxTextSecondary)
+                        Text(
+                            text = "${smartStutter.batteryTempCelsius}°C",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (smartStutter.batteryTempCelsius < 40f) ZxNeonCyan else ZxWarning
+                        )
+                    }
+
+                    Column {
+                        Text("Thermal Status", style = MaterialTheme.typography.labelSmall, color = ZxTextSecondary)
+                        Text(
+                            text = thermalData.statusString.take(12),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ZxTextPrimary
+                        )
+                    }
+
+                    Column {
+                        Text("Refresh Rate", style = MaterialTheme.typography.labelSmall, color = ZxTextSecondary)
+                        Text(
+                            text = "${displayData.refreshRateHz.toInt()} Hz",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ZxNeonGreen
+                        )
+                    }
+                }
+
+                if (smartStutter.recommendations.isNotEmpty()) {
+                    Divider(color = ZxBorder, thickness = 0.5.dp)
+                    smartStutter.recommendations.forEach { rec ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.ArrowRight, contentDescription = null, tint = ZxNeonCyan, modifier = Modifier.size(16.dp))
+                            Text(rec, style = MaterialTheme.typography.bodySmall, color = ZxTextSecondary)
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- OPTIMIZATION ACTION PIPELINE (ANALYZE / SIMULATE / APPLY / VERIFY) ---
+        TacticalCard {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "OPTIMIZATION PIPELINE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Current Mode: ${executionMode.displayName} (${executionMode.badgeText})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ZxNeonCyan
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.refreshHardware() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxDarkCard)
+                    ) {
+                        Text("ANALYZE", style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.setExecutionMode(ExecutionMode.SIMULATION)
+                            viewModel.setPerformanceMode(optimizerState.currentMode)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxDarkCard)
+                    ) {
+                        Text("SIMULATE", style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.setExecutionMode(ExecutionMode.APPLY)
+                            viewModel.setPerformanceMode(optimizerState.currentMode)
+                        },
+                        modifier = Modifier.weight(1.2f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxNeonGreen)
+                    ) {
+                        Text("APPLY", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = ZxDarkBackground)
+                    }
+
+                    Button(
+                        onClick = { viewModel.refreshHardware() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxDarkCard)
+                    ) {
+                        Text("VERIFY", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        }
+
+        // --- HARDWARE PERFORMANCE PROFILES ---
+        Text(
+            text = "HARDWARE PROFILES",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PerformanceMode.values().forEach { mode ->
+                val isSelected = optimizerState.currentMode == mode
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surface
+                        )
+                        .border(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { viewModel.setPerformanceMode(mode) }
+                        .padding(12.dp)
+                        .testTag("mode_${mode.name.lowercase()}")
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = when (mode) {
+                                PerformanceMode.BALANCED -> Icons.Default.Balance
+                                PerformanceMode.PERFORMANCE -> Icons.Default.Bolt
+                                PerformanceMode.BATTERY_SAVER -> Icons.Default.BatteryChargingFull
+                            },
+                            contentDescription = mode.title,
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = mode.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
 
         // Action Status Alert
@@ -91,65 +334,23 @@ fun OptimizerScreen(
             }
         }
 
-        // Performance Mode Selector
-        Text(
-            text = "HARDWARE PROFILES",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-
-        PerformanceMode.values().forEach { mode ->
-            val isSelected = optimizerState.currentMode == mode
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .clickable { viewModel.setPerformanceMode(mode) }
-                    .testTag("mode_${mode.name.lowercase()}"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = isSelected,
-                        onClick = { viewModel.setPerformanceMode(mode) },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = mode.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = mode.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // Real Memory Optimization & Trim
+        // --- SAFE MEMORY MANAGEMENT ---
         TacticalCard {
+            Text(
+                text = "APPLICATION CACHE TRIMMING",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Safely triggers standard Android garbage collection and trims obsolete bitmap resources without killing essential system processes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -157,130 +358,71 @@ fun OptimizerScreen(
             ) {
                 Column {
                     Text(
-                        text = "SYSTEM MEMORY ALLOCATION",
+                        text = "Available System RAM",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Real RAM status via ActivityManager",
-                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        text = "${memoryData.availableBytes / (1024 * 1024)} MB / ${memoryData.totalBytes / (1024 * 1024)} MB",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-                Text(
-                    text = "${memoryData.usedPercentage}% USED",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (memoryData.isLowMemory) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
+
+                Button(
+                    onClick = { viewModel.runMemoryOptimization() },
+                    modifier = Modifier.testTag("trim_memory_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Icon(imageVector = Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Trim Cache", fontWeight = FontWeight.Bold)
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            LinearProgressIndicator(
-                progress = { (memoryData.usedPercentage / 100f).coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = if (memoryData.isLowMemory) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            if (optimizerState.lastTrimmedTime > 0) {
+                val timeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Free: ${memoryData.availableMb} MB",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Text(
-                    text = "Total: ${memoryData.totalMb} MB",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { viewModel.runMemoryOptimization() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("trim_memory_button")
-            ) {
-                Icon(imageVector = Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Trim App Caches & Garbage Collect")
-            }
-
-            if (optimizerState.memoryFreedMb > 0L) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Last action freed ${optimizerState.memoryFreedMb} MB.",
+                    text = "Last trimmed at ${timeFormat.format(Date(optimizerState.lastTrimmedTime))} • Freed ${optimizerState.memoryFreedMb} MB",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
         }
 
-        // Display Refresh Rate Controller
-        TacticalCard {
-            Text(
-                text = "DISPLAY REFRESH RATE CONTROLLER",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Current Screen Mode: ${displayData.refreshRateHz.toInt()} Hz (${displayData.physicalWidthPx}x${displayData.physicalHeightPx})",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Supported Refresh Rates by Device:",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                displayData.supportedRefreshRates.forEach { hz ->
-                    val isCurrent = displayData.refreshRateHz.toInt() == hz.toInt()
-                    FilterChip(
-                        selected = isCurrent,
-                        onClick = {
-                            // Note: changes require Shizuku
-                            if (shizukuInfo.status == ShizukuStatus.CONNECTED) {
-                                viewModel.setPerformanceMode(PerformanceMode.PERFORMANCE)
-                            }
-                        },
-                        label = { Text("${hz.toInt()} Hz") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+        // --- SHIZUKU PRIVILEGED GAMING OPTIMIZATION ---
+        TacticalCard(borderColor = if (shizukuInfo.status == ShizukuStatus.CONNECTED) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "ANDROID GAME MODE API",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Native Android 12+ Game Mode Manager",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                StatusBadge(
+                    text = if (shizukuInfo.status == ShizukuStatus.CONNECTED) "SHIZUKU READY" else "SHIZUKU REQUIRED",
+                    color = if (shizukuInfo.status == ShizukuStatus.CONNECTED) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = if (shizukuInfo.status == ShizukuStatus.CONNECTED)
-                    "Status: Shizuku terhubung. Refresh rate peak dapat diset secara otomatis saat Extreme Performance aktif."
-                else
-                    "Status: Pengubahan refresh rate sistem via shell membutuhkan Shizuku aktif.",
-                style = MaterialTheme.typography.labelSmall,
+                text = "When Shizuku is connected, ZX Optimizer can invoke 'cmd game mode performance <package>' to request vendor GPU/CPU scheduling priorities natively without root.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

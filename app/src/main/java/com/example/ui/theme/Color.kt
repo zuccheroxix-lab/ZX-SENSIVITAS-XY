@@ -19,3 +19,11 @@ val ZxDarkCrimson = Color(0xFF3E0A16)
 val ZxTextPrimary = Color(0xFFF0F4F8)
 val ZxTextSecondary = Color(0xFF8B9BB4)
 val ZxTextMuted = Color(0xFF56657A)
+
+// Aliases for GamesLabs design system
+val ZxNeonCyan = ZxCyberCyan
+val ZxNeonGreen = ZxEmeraldGreen
+val ZxWarning = ZxNeonAmber
+val ZxNeonRed = ZxCrimsonRed
+val ZxBorder = ZxSurfaceBorder
+val ZxDarkCard = ZxDarkSurfaceVariant

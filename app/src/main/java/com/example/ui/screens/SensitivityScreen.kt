@@ -35,9 +35,7 @@ import com.example.ui.components.StatusBadge
 import com.example.ui.components.TacticalCard
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MainViewModel
-import kotlin.math.abs
 import kotlin.math.pow
-import kotlin.math.sign
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +45,9 @@ fun SensitivityScreen(
     modifier: Modifier = Modifier
 ) {
     val sensitivityConfig by viewModel.sensitivityConfig.collectAsState()
+    val globalSensitivityConfig by viewModel.globalSensitivityConfig.collectAsState()
+    val executionMode by viewModel.executionMode.collectAsState()
+    val sensitivityMode by viewModel.sensitivityMode.collectAsState()
     val shizukuInfo by viewModel.shizukuInfo.collectAsState()
     val touchMetrics by viewModel.touchLiveMetrics.collectAsState()
     val applyResult by viewModel.applyResult.collectAsState()
@@ -58,6 +59,7 @@ fun SensitivityScreen(
     val engineTrail by viewModel.engineTrail.collectAsState()
     val gameProfiles by viewModel.gameProfiles.collectAsState()
     val selectedProfile by viewModel.selectedProfile.collectAsState()
+    val sensScore by viewModel.sensCalibrationScore.collectAsState()
 
     val scrollState = rememberScrollState()
     var isCurveDropdownExpanded by remember { mutableStateOf(false) }
@@ -84,71 +86,181 @@ fun SensitivityScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Independent Horizontal X & Vertical Y drag response",
+                    text = "Independent Horizontal X & Vertical Y drag calibration",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             StatusBadge(
-                text = engineStatus.title,
-                color = when (engineStatus.code) {
-                    EngineStatusCode.APPLIED -> MaterialTheme.colorScheme.secondary
-                    EngineStatusCode.READY -> MaterialTheme.colorScheme.primary
-                    EngineStatusCode.UNSUPPORTED -> Color(0xFFFFB800)
-                    EngineStatusCode.ERROR -> MaterialTheme.colorScheme.error
-                }
+                text = "${sensScore}% SCORE",
+                color = ZxNeonCyan
             )
         }
 
-        // --- GAME PROFILE SELECTOR TABS ---
+        // --- MODE SELECTORS (GLOBAL / PER-GAME) & (SIMULATION / APPLY) ---
         TacticalCard {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "ACTIVE GAME PROFILE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = selectedProfile?.displayName ?: "Generic Profile",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(gameProfiles) { profile ->
-                    val isSelected = selectedProfile?.id == profile.id
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            )
-                            .border(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clickable { viewModel.selectGameProfile(profile) }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // SENSITIVITY MODE
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "SENSITIVITY ARCHITECTURE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ZxNeonGreen
+                    )
+                    Text(
+                        text = if (sensitivityMode == SensitivityMode.GLOBAL) "Global Master Active" else "Custom Per-Game Active",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ZxTextSecondary
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.setSensitivityMode(SensitivityMode.GLOBAL) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sensitivityMode == SensitivityMode.GLOBAL) ZxNeonCyan else ZxDarkCard
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = profile.displayName,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "GLOBAL",
+                            fontWeight = FontWeight.Bold,
+                            color = if (sensitivityMode == SensitivityMode.GLOBAL) ZxDarkBackground else ZxTextSecondary
                         )
                     }
+
+                    Button(
+                        onClick = { viewModel.setSensitivityMode(SensitivityMode.PER_GAME) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sensitivityMode == SensitivityMode.PER_GAME) ZxNeonCyan else ZxDarkCard
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "PER-GAME",
+                            fontWeight = FontWeight.Bold,
+                            color = if (sensitivityMode == SensitivityMode.PER_GAME) ZxDarkBackground else ZxTextSecondary
+                        )
+                    }
+                }
+
+                // OPERATION MODE BADGE
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Current Mode: ${executionMode.displayName} (${executionMode.badgeText})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (executionMode == ExecutionMode.APPLY) ZxNeonCyan else ZxNeonGreen
+                    )
+                    Text(
+                        text = "Tap to switch in Settings",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ZxTextSecondary
+                    )
+                }
+            }
+        }
+
+        // --- PER-GAME SELECTOR (Only shown in PER-GAME mode) ---
+        if (sensitivityMode == SensitivityMode.PER_GAME) {
+            TacticalCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "TARGET GAME PROFILE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    selectedProfile?.let { prof ->
+                        val isInst = viewModel.isGameInstalled(prof.packageName)
+                        Surface(
+                            color = if (isInst) ZxNeonGreen.copy(alpha = 0.2f) else ZxWarning.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = if (isInst) "INSTALLED" else "NOT INSTALLED",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isInst) ZxNeonGreen else ZxWarning,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(gameProfiles) { profile ->
+                        val isSelected = selectedProfile?.id == profile.id
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { viewModel.selectGameProfile(profile) }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = profile.displayName,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                selectedProfile?.let { prof ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Package: ${prof.packageName}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ZxTextSecondary
+                    )
+                }
+            }
+        } else {
+            // GLOBAL MODE BANNER
+            TacticalCard(borderColor = ZxNeonCyan.copy(alpha = 0.5f)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "GLOBAL PROFILE ACTIVE",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ZxNeonCyan
+                    )
+                    Text(
+                        text = "This single configuration acts as the default master for all drag testing and unconfigured games.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ZxTextSecondary
+                    )
                 }
             }
         }
@@ -220,7 +332,7 @@ fun SensitivityScreen(
         // --- PRESETS BAR ---
         TacticalCard {
             Text(
-                text = "ENGINE PRESETS",
+                text = "EXCLUSIVE PRESET",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -232,101 +344,104 @@ fun SensitivityScreen(
             ) {
                 items(SensitivityPreset.values()) { preset ->
                     val isSelected = selectedPreset == preset
-                    OutlinedButton(
-                        onClick = { viewModel.applyPreset(preset) },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
-                            contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(
-                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
                             )
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            .clickable { viewModel.applyPreset(preset) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .testTag("preset_${preset.name.lowercase()}")
                     ) {
                         Text(
                             text = preset.title,
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             }
-            selectedPreset?.let { preset ->
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = preset.description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
 
-        // --- INDEPENDENT X & Y SENSITIVITY CALIBRATION ---
-        TacticalCard {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "INDEPENDENT AXIS TUNING",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "X/Y RATIO: 1 : ${String.format("%.2f", sensitivityConfig.xyRatio)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // X SENSITIVITY SLIDER
-            EngineSliderRow(
-                axisLabel = "HORIZONTAL X",
-                subLabel = "Controls left/right camera panning & flick speed",
-                value = sensitivityConfig.xSensitivity,
-                formattedValue = "${String.format("%.2f", sensitivityConfig.xSensitivity)}x",
-                onValueChange = { viewModel.updateXSensitivity(it) },
-                valueRange = 0.20f..3.00f,
-                accentColor = Color(0xFF00F0FF),
-                testTag = "x_sensitivity_slider"
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Y SENSITIVITY SLIDER
-            EngineSliderRow(
-                axisLabel = "VERTICAL Y",
-                subLabel = "Controls vertical swipe response & headshot drag elevation",
-                value = sensitivityConfig.ySensitivity,
-                formattedValue = "${String.format("%.2f", sensitivityConfig.ySensitivity)}x",
-                onValueChange = { viewModel.updateYSensitivity(it) },
-                valueRange = 0.20f..3.00f,
-                accentColor = Color(0xFF00E676),
-                testTag = "y_sensitivity_slider"
-            )
-        }
-
-        // --- DYNAMICS & RESPONSE ENGINE PARAMETERS ---
+        // --- CORE X/Y PARAMETERS PANEL ---
         TacticalCard {
             Text(
-                text = "DRAG RESPONSE & SMOOTHING ENGINE",
+                text = "CORE RESPONSE MULTIPLIERS",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // X Sensitivity Slider
+            EngineSliderRow(
+                axisLabel = "Horizontal X Sensitivity",
+                subLabel = "Lateral camera panning & tracking response",
+                value = sensitivityConfig.xSensitivity,
+                formattedValue = "${String.format("%.2f", sensitivityConfig.xSensitivity)}x",
+                onValueChange = { viewModel.updateXSensitivity(it) },
+                valueRange = 0.20f..3.00f,
+                accentColor = MaterialTheme.colorScheme.primary,
+                testTag = "x_sensitivity_slider"
+            )
+
             Spacer(modifier = Modifier.height(14.dp))
 
-            // DRAG RESPONSE
+            // Y Sensitivity Slider
             EngineSliderRow(
-                axisLabel = "DRAG RESPONSE",
-                subLabel = "Global response gain for swipe gestures",
+                axisLabel = "Vertical Y Sensitivity",
+                subLabel = "Headshot elevation & swipe drag response",
+                value = sensitivityConfig.ySensitivity,
+                formattedValue = "${String.format("%.2f", sensitivityConfig.ySensitivity)}x",
+                onValueChange = { viewModel.updateYSensitivity(it) },
+                valueRange = 0.20f..3.00f,
+                accentColor = MaterialTheme.colorScheme.secondary,
+                testTag = "y_sensitivity_slider"
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // X/Y Ratio Visualizer
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "X to Y Elevation Ratio:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "1 : ${String.format("%.2f", sensitivityConfig.xyRatio)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (sensitivityConfig.xyRatio in 1.10f..1.35f) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // --- SECONDARY ADVANCED PARAMETERS PANEL ---
+        TacticalCard {
+            Text(
+                text = "SWIPE DYNAMICS & DEADZONE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Drag Response
+            EngineSliderRow(
+                axisLabel = "Global Drag Response",
+                subLabel = "Overall velocity gain multiplier for swipe gestures",
                 value = sensitivityConfig.dragResponse,
                 formattedValue = "${String.format("%.2f", sensitivityConfig.dragResponse)}x",
                 onValueChange = { viewModel.updateDragResponse(it) },
@@ -335,108 +450,107 @@ fun SensitivityScreen(
                 testTag = "drag_response_slider"
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // SMOOTHNESS
+            // Smoothness
             EngineSliderRow(
-                axisLabel = "SMOOTHNESS",
-                subLabel = "Low-pass filter to dampen jitter without adding input lag",
+                axisLabel = "Smoothness (EMA Filter)",
+                subLabel = "Suppresses micro-jitter and finger tremor",
                 value = sensitivityConfig.smoothness,
-                formattedValue = "${String.format("%.2f", sensitivityConfig.smoothness)}x",
+                formattedValue = "${(sensitivityConfig.smoothness * 100).toInt()}%",
                 onValueChange = { viewModel.updateSmoothness(it) },
                 valueRange = 0.00f..1.00f,
-                accentColor = Color(0xFFB388FF),
+                accentColor = MaterialTheme.colorScheme.secondary,
                 testTag = "smoothness_slider"
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // ACCELERATION
+            // Acceleration
             EngineSliderRow(
-                axisLabel = "ACCELERATION",
-                subLabel = "Dynamic response boost during fast reflex flicks",
+                axisLabel = "Dynamic Acceleration",
+                subLabel = "Exponential boost on fast flick swipes",
                 value = sensitivityConfig.acceleration,
-                formattedValue = "${String.format("%.2f", sensitivityConfig.acceleration)}x",
+                formattedValue = "+${String.format("%.2f", sensitivityConfig.acceleration)}x",
                 onValueChange = { viewModel.updateAcceleration(it) },
                 valueRange = 0.00f..2.00f,
-                accentColor = Color(0xFFFF9100),
+                accentColor = MaterialTheme.colorScheme.tertiary,
                 testTag = "acceleration_slider"
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // DEADZONE
+            // Deadzone
             EngineSliderRow(
-                axisLabel = "DEADZONE",
-                subLabel = "Suppresses tiny unintentional finger micro-tremors",
+                axisLabel = "Deadzone Threshold",
+                subLabel = "Suppresses unintended initial tap drift",
                 value = sensitivityConfig.deadzonePx,
                 formattedValue = "${String.format("%.1f", sensitivityConfig.deadzonePx)} px",
                 onValueChange = { viewModel.updateDeadzone(it) },
                 valueRange = 0.0f..12.0f,
-                accentColor = Color(0xFFFF5252),
+                accentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 testTag = "deadzone_slider"
             )
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // RESPONSE CURVE SELECTOR
-            Text(
-                text = "RESPONSE CURVE",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "Transfer function transforming raw touch delta into engine coordinate delta",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = isCurveDropdownExpanded,
-                onExpandedChange = { isCurveDropdownExpanded = !isCurveDropdownExpanded },
-                modifier = Modifier.fillMaxWidth()
+        // --- RESPONSE CURVE SELECTION & LIVE VISUALIZER ---
+        TacticalCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = sensitivityConfig.responseCurve.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCurveDropdownExpanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    shape = RoundedCornerShape(10.dp)
-                )
+                Column {
+                    Text(
+                        text = "RESPONSE TRANSFER CURVE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = sensitivityConfig.responseCurve.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-                ExposedDropdownMenu(
-                    expanded = isCurveDropdownExpanded,
-                    onDismissRequest = { isCurveDropdownExpanded = false }
-                ) {
-                    ResponseCurveType.values().forEach { curve ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(curve.displayName, fontWeight = FontWeight.SemiBold)
-                                    Text(curve.shortDesc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box {
+                    Button(
+                        onClick = { isCurveDropdownExpanded = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.testTag("select_curve_button")
+                    ) {
+                        Text("Change Curve", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                    }
+
+                    DropdownMenu(
+                        expanded = isCurveDropdownExpanded,
+                        onDismissRequest = { isCurveDropdownExpanded = false }
+                    ) {
+                        ResponseCurveType.values().forEach { curve ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(curve.displayName, fontWeight = FontWeight.Bold)
+                                        Text(curve.shortDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.updateResponseCurve(curve)
+                                    isCurveDropdownExpanded = false
                                 }
-                            },
-                            onClick = {
-                                viewModel.updateResponseCurve(curve)
-                                isCurveDropdownExpanded = false
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // RESPONSE CURVE VISUALIZER GRAPH
+            // Real Canvas Response Curve Graph
             ResponseCurveVisualizer(
                 curveType = sensitivityConfig.responseCurve,
                 acceleration = sensitivityConfig.acceleration,
@@ -599,80 +713,69 @@ fun SensitivityScreen(
                     val w = size.width
                     val h = size.height
 
-                    // 1. Grid background
-                    val step = 28.dp.toPx()
-                    var gx = 0f
-                    while (gx < w) {
-                        drawLine(Color(0xFF131A24), Offset(gx, 0f), Offset(gx, h), strokeWidth = 1f)
-                        gx += step
+                    // Grid Background
+                    val gridStep = 40f
+                    for (x in 0..(w / gridStep).toInt()) {
+                        drawLine(Color(0xFF131B26), Offset(x * gridStep, 0f), Offset(x * gridStep, h), strokeWidth = 1f)
                     }
-                    var gy = 0f
-                    while (gy < h) {
-                        drawLine(Color(0xFF131A24), Offset(0f, gy), Offset(w, gy), strokeWidth = 1f)
-                        gy += step
+                    for (y in 0..(h / gridStep).toInt()) {
+                        drawLine(Color(0xFF131B26), Offset(0f, y * gridStep), Offset(w, y * gridStep), strokeWidth = 1f)
                     }
 
-                    // 2. Guide lines based on selected test mode
-                    val guideEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                    // Target Guideline according to test mode
                     when (dragTestMode) {
                         DragTestMode.HORIZONTAL -> {
                             drawLine(
-                                color = Color(0xFF00F0FF).copy(alpha = 0.4f),
-                                start = Offset(20f, h / 2f),
-                                end = Offset(w - 20f, h / 2f),
+                                color = Color(0xFF263242),
+                                start = Offset(0f, h / 2),
+                                end = Offset(w, h / 2),
                                 strokeWidth = 2f,
-                                pathEffect = guideEffect
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
                             )
                         }
                         DragTestMode.VERTICAL -> {
                             drawLine(
-                                color = Color(0xFF00E676).copy(alpha = 0.4f),
-                                start = Offset(w / 2f, 20f),
-                                end = Offset(w / 2f, h - 20f),
+                                color = Color(0xFF263242),
+                                start = Offset(w / 2, 0f),
+                                end = Offset(w / 2, h),
                                 strokeWidth = 2f,
-                                pathEffect = guideEffect
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
                             )
                         }
                         DragTestMode.DIAGONAL -> {
                             drawLine(
-                                color = Color(0xFFFFB800).copy(alpha = 0.4f),
-                                start = Offset(20f, h - 20f),
-                                end = Offset(w - 20f, 20f),
+                                color = Color(0xFF263242),
+                                start = Offset(0f, h),
+                                end = Offset(w, 0f),
                                 strokeWidth = 2f,
-                                pathEffect = guideEffect
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
                             )
                         }
-                        DragTestMode.FREE_DRAG -> {}
+                        DragTestMode.FREE_DRAG -> {
+                            drawCircle(Color(0xFF1D2633), radius = 40f, center = Offset(w / 2, h / 2), style = Stroke(width = 1.5f))
+                        }
                     }
 
-                    // 3. Draw RAW input path (Orange trail)
+                    // Render RAW Trail (Orange)
                     if (rawTrail.size > 1) {
-                        for (i in 1 until rawTrail.size) {
-                            drawLine(
-                                color = Color(0xFFFF9100).copy(alpha = 0.5f),
-                                start = rawTrail[i - 1],
-                                end = rawTrail[i],
-                                strokeWidth = 3f
-                            )
+                        val rawPath = Path().apply {
+                            moveTo(rawTrail.first().x, rawTrail.first().y)
+                            for (i in 1 until rawTrail.size) {
+                                lineTo(rawTrail[i].x, rawTrail[i].y)
+                            }
                         }
+                        drawPath(rawPath, color = Color(0xFFFF9100).copy(alpha = 0.7f), style = Stroke(width = 2.5f))
                     }
 
-                    // 4. Draw PROCESSED engine path (Cyan trail)
+                    // Render PROCESSED Engine Trail (Cyan)
                     if (engineTrail.size > 1) {
-                        for (i in 1 until engineTrail.size) {
-                            drawLine(
-                                color = Color(0xFF00F0FF),
-                                start = engineTrail[i - 1],
-                                end = engineTrail[i],
-                                strokeWidth = 4f
-                            )
+                        val enginePath = Path().apply {
+                            moveTo(engineTrail.first().x, engineTrail.first().y)
+                            for (i in 1 until engineTrail.size) {
+                                lineTo(engineTrail[i].x, engineTrail[i].y)
+                            }
                         }
-                        // Target indicator on latest processed point
-                        drawCircle(
-                            color = Color(0xFF00E676),
-                            radius = 6f,
-                            center = engineTrail.last()
-                        )
+                        drawPath(enginePath, color = Color(0xFF00F0FF), style = Stroke(width = 3.5f))
                     }
                 }
 
@@ -754,47 +857,112 @@ fun SensitivityScreen(
             )
         }
 
-        // --- PRIMARY ACTION BUTTONS ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(
-                onClick = { viewModel.applySensitivityProfile() },
-                modifier = Modifier
-                    .weight(1.3f)
-                    .height(48.dp)
-                    .testTag("apply_profile_button"),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Apply Profile", fontWeight = FontWeight.Bold)
-            }
+        // --- PRIMARY ACTION BUTTONS (GLOBAL vs PER-GAME) ---
+        if (sensitivityMode == SensitivityMode.GLOBAL) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { viewModel.saveGlobalProfile() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ZxNeonCyan)
+                ) {
+                    Icon(imageVector = Icons.Default.Save, contentDescription = null, tint = ZxDarkBackground)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("SAVE GLOBAL PROFILE", fontWeight = FontWeight.Bold, color = ZxDarkBackground)
+                }
 
-            OutlinedButton(
-                onClick = { viewModel.clearCalibrationTrail() },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .testTag("test_drag_button")
-            ) {
-                Icon(imageVector = Icons.Default.Tune, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Test Drag")
-            }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.applySensitivityProfile() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxNeonGreen)
+                    ) {
+                        Text(if (executionMode == ExecutionMode.SIMULATION) "SIMULATE" else "APPLY TO SYSTEM", fontWeight = FontWeight.Bold, color = ZxDarkBackground)
+                    }
 
-            IconButton(
-                onClick = { viewModel.resetSensitivityToDefaults() },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
-                    .testTag("reset_sensitivity_button")
-            ) {
-                Icon(imageVector = Icons.Default.Restore, contentDescription = "Reset", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(
+                        onClick = { viewModel.resetSensitivityToDefaults() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("RESET")
+                    }
+                }
+            }
+        } else {
+            // PER-GAME MODE ACTIONS
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            selectedProfile?.let {
+                                val updated = it.copy(
+                                    xSensitivity = sensitivityConfig.xSensitivity,
+                                    ySensitivity = sensitivityConfig.ySensitivity,
+                                    dragResponse = sensitivityConfig.dragResponse,
+                                    dragSmoothness = sensitivityConfig.smoothness,
+                                    acceleration = sensitivityConfig.acceleration,
+                                    deadzonePx = sensitivityConfig.deadzonePx,
+                                    responseCurve = sensitivityConfig.responseCurve.name,
+                                    pointerSpeed = sensitivityConfig.systemPointerSpeed
+                                )
+                                viewModel.saveGameProfile(updated)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxNeonCyan)
+                    ) {
+                        Icon(imageVector = Icons.Default.Save, contentDescription = null, tint = ZxDarkBackground)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("SAVE PROFILE", fontWeight = FontWeight.Bold, color = ZxDarkBackground)
+                    }
+
+                    Button(
+                        onClick = { viewModel.useGlobalForSelectedGame() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxDarkCard)
+                    ) {
+                        Text("USE GLOBAL", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.applySensitivityProfile() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ZxNeonGreen)
+                    ) {
+                        Text(if (executionMode == ExecutionMode.SIMULATION) "SIMULATE" else "APPLY", fontWeight = FontWeight.Bold, color = ZxDarkBackground)
+                    }
+
+                    OutlinedButton(
+                        onClick = { viewModel.resetSelectedGameProfile() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                    ) {
+                        Text("RESET")
+                    }
+                }
             }
         }
     }
@@ -892,10 +1060,9 @@ private fun ResponseCurveVisualizer(
             val path = Path()
             val steps = 60
             for (i in 0..steps) {
-                val inputRatio = i.toFloat() / steps // 0 to 1
+                val inputRatio = i.toFloat() / steps
                 val rawPx = inputRatio * 60f
 
-                // Deadzone
                 val eff = if (rawPx <= deadzone) 0f else (rawPx - deadzone)
                 val normSpeed = (inputRatio * 2f).coerceIn(0f, 3f)
                 val accel = 1f + (acceleration * normSpeed * 0.5f)
@@ -930,7 +1097,7 @@ private fun ResponseCurveVisualizer(
             horizontalArrangement = Arrangement.End
         ) {
             Text(
-                text = "${curveType.displayName} | Accel: +${"%.2f".format(acceleration)}x",
+                text = "${curveType.displayName} | Accel: +${String.format("%.2f", acceleration)}x",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color(0xFF00F0FF),
                 fontSize = 10.sp

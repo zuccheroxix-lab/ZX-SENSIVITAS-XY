@@ -23,6 +23,8 @@ class ZxOptimizerApplication : Application() {
         AppRepository(
             gameProfileDao = database.gameProfileDao(),
             crosshairPresetDao = database.crosshairPresetDao(),
+            actionHistoryDao = database.actionHistoryDao(),
+            globalConfigDao = database.globalConfigDao(),
             context = this
         )
     }

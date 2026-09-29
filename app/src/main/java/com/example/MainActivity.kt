@@ -128,6 +128,9 @@ class MainActivity : ComponentActivity() {
                                 NavDestination.SHIZUKU -> ShizukuScreen(
                                     viewModel = viewModel
                                 )
+                                NavDestination.SETTINGS -> SettingsScreen(
+                                    viewModel = viewModel
+                                )
                             }
                         }
                     }

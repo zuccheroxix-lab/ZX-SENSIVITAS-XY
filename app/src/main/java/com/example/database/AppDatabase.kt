@@ -10,13 +10,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [GameProfileEntity::class, CrosshairPresetEntity::class],
-    version = 2,
+    entities = [
+        GameProfileEntity::class,
+        CrosshairPresetEntity::class,
+        ActionHistoryEntity::class,
+        GlobalConfigEntity::class
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameProfileDao(): GameProfileDao
     abstract fun crosshairPresetDao(): CrosshairPresetDao
+    abstract fun actionHistoryDao(): ActionHistoryDao
+    abstract fun globalConfigDao(): GlobalConfigDao
 
     companion object {
         @Volatile
@@ -48,14 +55,33 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private suspend fun seedInitialData(database: AppDatabase) {
+        suspend fun seedInitialData(database: AppDatabase) {
+            val globalConfig = GlobalConfigEntity(
+                id = 1,
+                sensitivityMode = "GLOBAL",
+                executionMode = "SIMULATION",
+                globalX = 1.90f,
+                globalY = 2.35f,
+                globalSmoothness = 0.65f,
+                globalResponse = 1.10f,
+                globalAcceleration = 0.30f,
+                globalDeadzone = 2.0f,
+                globalCurve = "DYNAMIC_S",
+                vibrationEnabled = true,
+                vibrationIntensity = 180,
+                vibrationProfile = "CLICK",
+                previousPointerSpeed = 0,
+                previousDpi = 0
+            )
+            database.globalConfigDao().insertOrUpdate(globalConfig)
+
             val defaultGames = listOf(
                 GameProfileEntity(
                     packageName = "com.dts.freefireth",
                     displayName = "Free Fire (Standard)",
-                    xSensitivity = 1.10f,
-                    ySensitivity = 1.35f,
-                    dragResponse = 1.10f,
+                    xSensitivity = 1.90f,
+                    ySensitivity = 2.35f,
+                    dragResponse = 1.15f,
                     dragSmoothness = 0.60f,
                     acceleration = 0.40f,
                     deadzonePx = 2.0f,
@@ -65,14 +91,16 @@ abstract class AppDatabase : RoomDatabase() {
                     pointerSpeed = 3,
                     targetDpi = 440,
                     gameMode = "PERFORMANCE",
+                    vibrationIntensity = 180,
+                    vibrationProfile = "CLICK",
                     isCustom = false,
                     isDefaultSelected = true
                 ),
                 GameProfileEntity(
                     packageName = "com.dts.freefiremax",
                     displayName = "Free Fire MAX",
-                    xSensitivity = 1.15f,
-                    ySensitivity = 1.40f,
+                    xSensitivity = 1.95f,
+                    ySensitivity = 2.40f,
                     dragResponse = 1.15f,
                     dragSmoothness = 0.55f,
                     acceleration = 0.45f,
@@ -83,15 +111,37 @@ abstract class AppDatabase : RoomDatabase() {
                     pointerSpeed = 3,
                     targetDpi = 440,
                     gameMode = "PERFORMANCE",
+                    vibrationIntensity = 180,
+                    vibrationProfile = "CLICK",
+                    isCustom = false,
+                    isDefaultSelected = false
+                ),
+                GameProfileEntity(
+                    packageName = "com.mobile.legends",
+                    displayName = "Mobile Legends: Bang Bang",
+                    xSensitivity = 1.70f,
+                    ySensitivity = 2.10f,
+                    dragResponse = 1.05f,
+                    dragSmoothness = 0.65f,
+                    acceleration = 0.20f,
+                    deadzonePx = 2.0f,
+                    responseCurve = "LINEAR",
+                    aimStability = 78f,
+                    touchResponse = 85f,
+                    pointerSpeed = 1,
+                    targetDpi = 400,
+                    gameMode = "BALANCED",
+                    vibrationIntensity = 160,
+                    vibrationProfile = "TICK",
                     isCustom = false,
                     isDefaultSelected = false
                 ),
                 GameProfileEntity(
                     packageName = "com.tencent.ig",
                     displayName = "PUBG Mobile",
-                    xSensitivity = 0.90f,
-                    ySensitivity = 0.95f,
-                    dragResponse = 0.95f,
+                    xSensitivity = 1.50f,
+                    ySensitivity = 1.80f,
+                    dragResponse = 1.00f,
                     dragSmoothness = 0.75f,
                     acceleration = 0.15f,
                     deadzonePx = 3.0f,
@@ -101,15 +151,37 @@ abstract class AppDatabase : RoomDatabase() {
                     pointerSpeed = 2,
                     targetDpi = 420,
                     gameMode = "PERFORMANCE",
+                    vibrationIntensity = 200,
+                    vibrationProfile = "HEAVY_CLICK",
+                    isCustom = false,
+                    isDefaultSelected = false
+                ),
+                GameProfileEntity(
+                    packageName = "com.roblox.client",
+                    displayName = "Roblox",
+                    xSensitivity = 1.60f,
+                    ySensitivity = 1.90f,
+                    dragResponse = 1.10f,
+                    dragSmoothness = 0.60f,
+                    acceleration = 0.35f,
+                    deadzonePx = 2.0f,
+                    responseCurve = "DYNAMIC_S",
+                    aimStability = 80f,
+                    touchResponse = 85f,
+                    pointerSpeed = 2,
+                    targetDpi = 420,
+                    gameMode = "BALANCED",
+                    vibrationIntensity = 150,
+                    vibrationProfile = "CLICK",
                     isCustom = false,
                     isDefaultSelected = false
                 ),
                 GameProfileEntity(
                     packageName = "com.activision.callofduty.shooter",
                     displayName = "Call of Duty: Mobile",
-                    xSensitivity = 1.00f,
-                    ySensitivity = 1.05f,
-                    dragResponse = 1.00f,
+                    xSensitivity = 1.65f,
+                    ySensitivity = 1.95f,
+                    dragResponse = 1.05f,
                     dragSmoothness = 0.70f,
                     acceleration = 0.25f,
                     deadzonePx = 2.0f,
@@ -119,24 +191,8 @@ abstract class AppDatabase : RoomDatabase() {
                     pointerSpeed = 2,
                     targetDpi = 420,
                     gameMode = "PERFORMANCE",
-                    isCustom = false,
-                    isDefaultSelected = false
-                ),
-                GameProfileEntity(
-                    packageName = "com.mobile.legends",
-                    displayName = "Mobile Legends: Bang Bang",
-                    xSensitivity = 1.00f,
-                    ySensitivity = 1.00f,
-                    dragResponse = 1.00f,
-                    dragSmoothness = 0.65f,
-                    acceleration = 0.20f,
-                    deadzonePx = 2.0f,
-                    responseCurve = "LINEAR",
-                    aimStability = 75f,
-                    touchResponse = 85f,
-                    pointerSpeed = 1,
-                    targetDpi = 400,
-                    gameMode = "BALANCED",
+                    vibrationIntensity = 190,
+                    vibrationProfile = "DOUBLE_CLICK",
                     isCustom = false,
                     isDefaultSelected = false
                 )

@@ -13,7 +13,7 @@ enum class NavDestination(
 ) {
     HOME(
         route = "home",
-        title = "Home",
+        title = "GamesLabs",
         selectedIcon = Icons.Filled.Dashboard,
         unselectedIcon = Icons.Outlined.Dashboard
     ),
@@ -37,7 +37,7 @@ enum class NavDestination(
     ),
     DEVICE(
         route = "device",
-        title = "Device",
+        title = "Monitor",
         selectedIcon = Icons.Filled.DeveloperBoard,
         unselectedIcon = Icons.Outlined.DeveloperBoard
     ),
@@ -52,5 +52,11 @@ enum class NavDestination(
         title = "Shizuku",
         selectedIcon = Icons.Filled.Terminal,
         unselectedIcon = Icons.Outlined.Terminal
+    ),
+    SETTINGS(
+        route = "settings",
+        title = "Settings",
+        selectedIcon = Icons.Filled.Settings,
+        unselectedIcon = Icons.Outlined.Settings
     )
 }
